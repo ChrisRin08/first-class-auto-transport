@@ -35,7 +35,17 @@ function FieldError({ message }) {
     return null
   }
 
-  return <p className="mt-2 text-sm text-red-300">{message}</p>
+  return (
+    <p className="mt-2 text-sm text-red-300" role="alert" aria-live="polite">
+      {message}
+    </p>
+  )
+}
+
+// This helper allows common phone formats by checking only the digit count.
+function hasValidPhoneNumber(value) {
+  const digitsOnly = value.replace(/\D/g, '')
+  return digitsOnly.length >= 10
 }
 
 function StepIndicator({ currentStep }) {
@@ -138,6 +148,8 @@ function QuoteForm() {
 
       if (!formData.phoneNumber.trim()) {
         nextErrors.phoneNumber = 'Phone number is required.'
+      } else if (!hasValidPhoneNumber(formData.phoneNumber.trim())) {
+        nextErrors.phoneNumber = 'Please enter a valid phone number.'
       }
 
       if (!formData.email.trim()) {
@@ -162,6 +174,14 @@ function QuoteForm() {
 
   function handlePreviousStep() {
     setCurrentStep((step) => Math.max(step - 1, 1))
+  }
+
+  // This reset path lets someone begin a fresh quote after the temporary success state.
+  function handleResetQuote() {
+    setFormData(initialFormData)
+    setErrors({})
+    setCurrentStep(1)
+    setIsSubmitted(false)
   }
 
   // Final submit is intentionally local-only until the next phase connects real delivery.
@@ -196,7 +216,12 @@ function QuoteForm() {
       </div>
 
       {isSubmitted ? (
-        <div className="mt-8 rounded-[1.5rem] border border-[var(--color-brand-gold)]/28 bg-[var(--color-brand-gold-soft)] p-6">
+        <div
+          className="mt-8 rounded-[1.5rem] border border-[var(--color-brand-gold)]/28 bg-[var(--color-brand-gold-soft)] p-6"
+          role="status"
+          aria-live="polite"
+        >
+          {/* This status region is announced politely because it replaces the form after submit. */}
           <h3 className="text-xl font-semibold text-[var(--color-brand-off-white)]">
             Quote request ready
           </h3>
@@ -204,6 +229,13 @@ function QuoteForm() {
             Quote request ready. Form submission will be connected in the next
             phase.
           </p>
+          <button
+            type="button"
+            onClick={handleResetQuote}
+            className="mt-6 inline-flex items-center justify-center rounded-full border border-[var(--color-brand-black)]/15 bg-[var(--color-brand-black)] px-6 py-3 text-sm font-semibold text-[var(--color-brand-off-white)] transition hover:bg-[var(--color-brand-black)]/90"
+          >
+            Start another quote
+          </button>
         </div>
       ) : (
         <form className="mt-8" onSubmit={handleSubmit} noValidate>
