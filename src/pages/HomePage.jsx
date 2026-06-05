@@ -1,3 +1,5 @@
+import AboutSection from '../components/AboutSection.jsx'
+import ContactSection from '../components/ContactSection.jsx'
 import Hero from '../components/Hero.jsx'
 import Navbar from '../components/Navbar.jsx'
 import QuoteForm from '../components/QuoteForm.jsx'
@@ -9,18 +11,8 @@ function HomePage() {
       <Navbar />
       <Hero />
       <ServicesSection />
-
-      <section id="about" className="px-6 py-12 sm:px-10 lg:px-16">
-        <div className="mx-auto max-w-7xl rounded-3xl border border-white/10 bg-white/4 p-6 text-white/72">
-          About section placeholder
-        </div>
-      </section>
-
-      <section id="contact" className="px-6 py-12 sm:px-10 lg:px-16">
-        <div className="mx-auto max-w-7xl rounded-3xl border border-white/10 bg-white/4 p-6 text-white/72">
-          Contact section placeholder
-        </div>
-      </section>
+      <AboutSection />
+      <ContactSection />
 
       <section id="quote" className="px-6 py-12 sm:px-10 lg:px-16 lg:pb-20">
         <div className="mx-auto max-w-7xl">
