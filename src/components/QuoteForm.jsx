@@ -1,3 +1,4 @@
+import { useForm } from '@formspree/react'
 import { useMemo, useState } from 'react'
 import { services } from '../data/services.js'
 
@@ -28,6 +29,13 @@ const initialFormData = {
   fullName: '',
   phoneNumber: '',
   email: '',
+}
+
+const defaultSubmissionState = {
+  errors: null,
+  result: null,
+  submitting: false,
+  succeeded: false,
 }
 
 function FieldError({ message }) {
@@ -74,126 +82,32 @@ function StepIndicator({ currentStep }) {
   )
 }
 
-function QuoteForm() {
-  // Keep all quote fields in one place so each step updates the same draft.
-  const [formData, setFormData] = useState(initialFormData)
-  const [currentStep, setCurrentStep] = useState(1)
-  const [errors, setErrors] = useState({})
-  const [isSubmitted, setIsSubmitted] = useState(false)
+function FormspreeBridge({ children, formId }) {
+  const [submissionState, submitToFormspree, resetSubmissionState] = useForm(formId)
 
-  const serviceOptions = useMemo(() => services.map((service) => service.title), [])
+  return children({
+    resetSubmissionState,
+    submissionState,
+    submitToFormspree,
+  })
+}
 
-  function handleChange(event) {
-    const { name, value } = event.target
-
-    setFormData((currentData) => ({
-      ...currentData,
-      [name]: value,
-    }))
-
-    setErrors((currentErrors) => ({
-      ...currentErrors,
-      [name]: '',
-    }))
-  }
-
-  // Validate only the active step so people can move through the form gradually.
-  function validateStep(stepNumber) {
-    const nextErrors = {}
-
-    if (stepNumber === 1) {
-      if (!formData.pickupLocation.trim()) {
-        nextErrors.pickupLocation = 'Pickup location is required.'
-      }
-
-      if (!formData.dropoffLocation.trim()) {
-        nextErrors.dropoffLocation = 'Drop-off location is required.'
-      }
-    }
-
-    if (stepNumber === 2) {
-      if (!formData.vehicleYear.trim()) {
-        nextErrors.vehicleYear = 'Vehicle year is required.'
-      } else if (!/^\d{4}$/.test(formData.vehicleYear.trim())) {
-        nextErrors.vehicleYear = 'Enter a 4-digit year.'
-      }
-
-      if (!formData.vehicleMake.trim()) {
-        nextErrors.vehicleMake = 'Vehicle make is required.'
-      }
-
-      if (!formData.vehicleModel.trim()) {
-        nextErrors.vehicleModel = 'Vehicle model is required.'
-      }
-
-      if (!formData.vehicleCondition) {
-        nextErrors.vehicleCondition = 'Select the vehicle condition.'
-      }
-    }
-
-    if (stepNumber === 3) {
-      if (!formData.serviceType) {
-        nextErrors.serviceType = 'Select a service type.'
-      }
-
-      if (!formData.preferredDateTime) {
-        nextErrors.preferredDateTime = 'Preferred date and time is required.'
-      }
-    }
-
-    if (stepNumber === 4) {
-      if (!formData.fullName.trim()) {
-        nextErrors.fullName = 'Full name is required.'
-      }
-
-      if (!formData.phoneNumber.trim()) {
-        nextErrors.phoneNumber = 'Phone number is required.'
-      } else if (!hasValidPhoneNumber(formData.phoneNumber.trim())) {
-        nextErrors.phoneNumber = 'Please enter a valid phone number.'
-      }
-
-      if (!formData.email.trim()) {
-        nextErrors.email = 'Email is required.'
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
-        nextErrors.email = 'Enter a valid email address.'
-      }
-    }
-
-    setErrors(nextErrors)
-    return Object.keys(nextErrors).length === 0
-  }
-
-  // Step changes always go through these helpers so validation and state stay predictable.
-  function handleNextStep() {
-    if (!validateStep(currentStep)) {
-      return
-    }
-
-    setCurrentStep((step) => Math.min(step + 1, steps.length))
-  }
-
-  function handlePreviousStep() {
-    setCurrentStep((step) => Math.max(step - 1, 1))
-  }
-
-  // This reset path lets someone begin a fresh quote after the temporary success state.
-  function handleResetQuote() {
-    setFormData(initialFormData)
-    setErrors({})
-    setCurrentStep(1)
-    setIsSubmitted(false)
-  }
-
-  // Final submit is intentionally local-only until the next phase connects real delivery.
-  function handleSubmit(event) {
-    event.preventDefault()
-
-    if (!validateStep(currentStep)) {
-      return
-    }
-
-    setIsSubmitted(true)
-  }
+function QuoteFormBody({
+  currentStep,
+  developerMessage,
+  errors,
+  formData,
+  handleChange,
+  handleNextStep,
+  handlePreviousStep,
+  handleResetQuote,
+  handleSubmit,
+  isConfigured,
+  serviceOptions,
+  submissionError,
+  submissionState,
+}) {
+  const isSubmitted = submissionState.succeeded
 
   return (
     <div className="rounded-[2rem] border border-[var(--color-brand-gold)]/22 bg-[linear-gradient(180deg,rgba(10,10,10,0.94),rgba(10,10,10,0.84))] p-6 shadow-2xl shadow-black/30 sm:p-8 lg:p-10">
@@ -206,10 +120,20 @@ function QuoteForm() {
         </h2>
         <p className="mt-5 text-base leading-7 text-white/72 sm:text-lg">
           Tell us where the vehicle is, what service you need, and how to reach
-          you. This form is prepared for submission, but it does not send data
-          anywhere yet.
+          you. This form is prepared for submission through Formspree when the
+          project is configured with a form ID.
         </p>
       </div>
+
+      {!isConfigured ? (
+        <div
+          className="mt-6 rounded-2xl border border-amber-400/25 bg-amber-500/10 p-4 text-sm leading-6 text-amber-100"
+          role="status"
+          aria-live="polite"
+        >
+          {developerMessage}
+        </div>
+      ) : null}
 
       <div className="mt-8">
         <StepIndicator currentStep={currentStep} />
@@ -223,11 +147,11 @@ function QuoteForm() {
         >
           {/* This status region is announced politely because it replaces the form after submit. */}
           <h3 className="text-xl font-semibold text-[var(--color-brand-off-white)]">
-            Quote request ready
+            Quote request sent
           </h3>
           <p className="mt-3 text-base leading-7 text-white/80">
-            Quote request ready. Form submission will be connected in the next
-            phase.
+            Your quote request has been submitted successfully. We will review
+            it and follow up using the contact details you provided.
           </p>
           <button
             type="button"
@@ -248,6 +172,16 @@ function QuoteForm() {
                 {steps[currentStep - 1].title}
               </p>
             </div>
+
+            {submissionError ? (
+              <div
+                className="mb-6 rounded-2xl border border-red-400/25 bg-red-500/10 p-4 text-sm leading-6 text-red-100"
+                role="alert"
+                aria-live="polite"
+              >
+                {submissionError}
+              </div>
+            ) : null}
 
             {currentStep === 1 ? (
               <div className="grid gap-5">
@@ -469,7 +403,7 @@ function QuoteForm() {
             <button
               type="button"
               onClick={handlePreviousStep}
-              disabled={currentStep === 1}
+              disabled={currentStep === 1 || submissionState.submitting}
               className="inline-flex items-center justify-center rounded-full border border-white/12 bg-white/4 px-6 py-3 text-sm font-semibold text-[var(--color-brand-off-white)] transition hover:border-[var(--color-brand-gold)]/40 hover:bg-white/7 disabled:cursor-not-allowed disabled:opacity-40"
             >
               Back
@@ -479,22 +413,212 @@ function QuoteForm() {
               <button
                 type="button"
                 onClick={handleNextStep}
-                className="inline-flex items-center justify-center rounded-full bg-[var(--color-brand-gold)] px-6 py-3 text-sm font-semibold text-[var(--color-brand-black)] transition hover:brightness-105"
+                disabled={submissionState.submitting}
+                className="inline-flex items-center justify-center rounded-full bg-[var(--color-brand-gold)] px-6 py-3 text-sm font-semibold text-[var(--color-brand-black)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Continue
               </button>
             ) : (
               <button
                 type="submit"
-                className="inline-flex items-center justify-center rounded-full bg-[var(--color-brand-gold)] px-6 py-3 text-sm font-semibold text-[var(--color-brand-black)] transition hover:brightness-105"
+                disabled={!isConfigured || submissionState.submitting}
+                className="inline-flex items-center justify-center rounded-full bg-[var(--color-brand-gold)] px-6 py-3 text-sm font-semibold text-[var(--color-brand-black)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Submit Quote Request
+                {submissionState.submitting ? 'Submitting...' : 'Submit Quote Request'}
               </button>
             )}
           </div>
         </form>
       )}
     </div>
+  )
+}
+
+function QuoteForm() {
+  // Keep all quote fields in one place so each step updates the same draft.
+  const [formData, setFormData] = useState(initialFormData)
+  const [currentStep, setCurrentStep] = useState(1)
+  const [errors, setErrors] = useState({})
+  const formId = import.meta.env.VITE_FORMSPREE_FORM_ID?.trim()
+  const isConfigured = Boolean(formId)
+
+  const serviceOptions = useMemo(() => services.map((service) => service.title), [])
+
+  function handleChange(event) {
+    const { name, value } = event.target
+
+    setFormData((currentData) => ({
+      ...currentData,
+      [name]: value,
+    }))
+
+    setErrors((currentErrors) => ({
+      ...currentErrors,
+      [name]: '',
+    }))
+  }
+
+  function getSubmissionPayload() {
+    return {
+      dropoffLocation: formData.dropoffLocation.trim(),
+      email: formData.email.trim(),
+      fullName: formData.fullName.trim(),
+      notes: formData.notes.trim(),
+      phone: formData.phoneNumber.trim(),
+      pickupLocation: formData.pickupLocation.trim(),
+      preferredDateTime: formData.preferredDateTime,
+      serviceType: formData.serviceType,
+      vehicleCondition: formData.vehicleCondition,
+      vehicleMake: formData.vehicleMake.trim(),
+      vehicleModel: formData.vehicleModel.trim(),
+      vehicleYear: formData.vehicleYear.trim(),
+    }
+  }
+
+  // Validate only the active step so people can move through the form gradually.
+  function validateStep(stepNumber) {
+    const nextErrors = {}
+
+    if (stepNumber === 1) {
+      if (!formData.pickupLocation.trim()) {
+        nextErrors.pickupLocation = 'Pickup location is required.'
+      }
+
+      if (!formData.dropoffLocation.trim()) {
+        nextErrors.dropoffLocation = 'Drop-off location is required.'
+      }
+    }
+
+    if (stepNumber === 2) {
+      if (!formData.vehicleYear.trim()) {
+        nextErrors.vehicleYear = 'Vehicle year is required.'
+      } else if (!/^\d{4}$/.test(formData.vehicleYear.trim())) {
+        nextErrors.vehicleYear = 'Enter a 4-digit year.'
+      }
+
+      if (!formData.vehicleMake.trim()) {
+        nextErrors.vehicleMake = 'Vehicle make is required.'
+      }
+
+      if (!formData.vehicleModel.trim()) {
+        nextErrors.vehicleModel = 'Vehicle model is required.'
+      }
+
+      if (!formData.vehicleCondition) {
+        nextErrors.vehicleCondition = 'Select the vehicle condition.'
+      }
+    }
+
+    if (stepNumber === 3) {
+      if (!formData.serviceType) {
+        nextErrors.serviceType = 'Select a service type.'
+      }
+
+      if (!formData.preferredDateTime) {
+        nextErrors.preferredDateTime = 'Preferred date and time is required.'
+      }
+    }
+
+    if (stepNumber === 4) {
+      if (!formData.fullName.trim()) {
+        nextErrors.fullName = 'Full name is required.'
+      }
+
+      if (!formData.phoneNumber.trim()) {
+        nextErrors.phoneNumber = 'Phone number is required.'
+      } else if (!hasValidPhoneNumber(formData.phoneNumber.trim())) {
+        nextErrors.phoneNumber = 'Please enter a valid phone number.'
+      }
+
+      if (!formData.email.trim()) {
+        nextErrors.email = 'Email is required.'
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email.trim())) {
+        nextErrors.email = 'Enter a valid email address.'
+      }
+    }
+
+    setErrors(nextErrors)
+    return Object.keys(nextErrors).length === 0
+  }
+
+  // Step changes always go through these helpers so validation and state stay predictable.
+  function handleNextStep() {
+    if (!validateStep(currentStep)) {
+      return
+    }
+
+    setCurrentStep((step) => Math.min(step + 1, steps.length))
+  }
+
+  function handlePreviousStep() {
+    setCurrentStep((step) => Math.max(step - 1, 1))
+  }
+
+  // This reset path lets someone begin a fresh quote after a successful submission.
+  function resetQuoteState() {
+    setFormData(initialFormData)
+    setErrors({})
+    setCurrentStep(1)
+  }
+
+  function renderForm(submissionState, submitToFormspree, resetSubmissionState) {
+    const developerMessage = !isConfigured
+      ? 'Form submission is not configured yet. Add VITE_FORMSPREE_FORM_ID to your local .env file and hosting environment to enable Formspree submissions.'
+      : ''
+
+    const submissionError = submissionState.errors
+      ? 'We could not send your quote request right now. Please try again in a moment.'
+      : ''
+
+    function handleResetQuote() {
+      resetQuoteState()
+      resetSubmissionState()
+    }
+
+    // Final submit sends the collected quote data to Formspree only after the last step validates.
+    async function handleSubmit(event) {
+      event.preventDefault()
+
+      if (!validateStep(currentStep)) {
+        return
+      }
+
+      if (!isConfigured) {
+        return
+      }
+
+      await submitToFormspree(getSubmissionPayload())
+    }
+
+    return (
+      <QuoteFormBody
+        currentStep={currentStep}
+        developerMessage={developerMessage}
+        errors={errors}
+        formData={formData}
+        handleChange={handleChange}
+        handleNextStep={handleNextStep}
+        handlePreviousStep={handlePreviousStep}
+        handleResetQuote={handleResetQuote}
+        handleSubmit={handleSubmit}
+        isConfigured={isConfigured}
+        serviceOptions={serviceOptions}
+        submissionError={submissionError}
+        submissionState={submissionState}
+      />
+    )
+  }
+
+  if (!isConfigured) {
+    return renderForm(defaultSubmissionState, async () => {}, () => {})
+  }
+
+  return (
+    <FormspreeBridge formId={formId}>
+      {({ resetSubmissionState, submissionState, submitToFormspree }) =>
+        renderForm(submissionState, submitToFormspree, resetSubmissionState)
+      }
+    </FormspreeBridge>
   )
 }
 

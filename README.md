@@ -1,16 +1,38 @@
-# React + Vite
+# First Class Auto Transport
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This project is a React + Vite website for First Class Auto Transport.
 
-Currently, two official plugins are available:
+## Local setup
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Install dependencies:
 
-## React Compiler
+```bash
+npm install
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+2. Create a local `.env` file in the project root:
 
-## Expanding the ESLint configuration
+```env
+VITE_FORMSPREE_FORM_ID=meeweerg
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+3. Start the development server:
+
+```bash
+npm run dev
+```
+
+## Important notes
+
+- Do not commit `.env` or `.env.local`
+- The project `.gitignore` already ignores environment files
+- Quote requests are sent to Formspree only when `VITE_FORMSPREE_FORM_ID` is set
+
+## Vercel setup
+
+Add the same environment variable in your Vercel project settings:
+
+- Key: `VITE_FORMSPREE_FORM_ID`
+- Value: your Formspree form ID, such as `meeweerg`
+
+After adding the variable in Vercel, redeploy the site so the client build can read it.
